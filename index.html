@@ -1,0 +1,94 @@
+<html ng-app="OSM">
+<head>
+	<title>Open Street Maps using Clusterpoint</title>
+	<!-- Angular Material CSS now available via Google CDN; version 0.8 used here -->
+	<link rel="stylesheet" href="assets/css/style2.css">
+</head>
+<body layout="column" ng-controller="MainCtrl">
+<md-toolbar class="md-whiteframe-z3">
+	<div class="md-toolbar-tools">
+		<span flex>Open Street Maps using Clusterpoint</span>
+	</div>
+</md-toolbar>
+<div id="map" class="md-whiteframe-z2" flex></div>
+
+<!--Plugins-->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js" type="text/javascript"></script>
+<script src='https://api.tiles.mapbox.com/mapbox.js/v2.1.9/mapbox.js'></script>
+<script
+		src="https://api.tiles.mapbox.com/mapbox.js/plugins/leaflet-markercluster/v0.4.0/leaflet.markercluster.js"></script>
+<script>
+	$(document).ready(function () {
+		var current_location = [51.507351, -0.127758];
+		var radius = '1 km';
+
+		// Loading map from mapbox
+		// Setting view to london
+		L.mapbox.accessToken = 'pk.eyJ1IjoiaW5zMWQzciIsImEiOiJmYTk5MjY4ZWMwNjVmNWVlZDdiZmQzOGE4ZWE2M2QxZCJ9.3aNjVwLZwEvRoZefs-vFvw';
+		var map = L.mapbox.map('map', 'ins1d3r.a901164f')
+				.setView(current_location, 12);
+
+		// Create the marker group again
+		var markerGroup = new L.MarkerClusterGroup().addTo(map);
+
+		$.ajax({
+			url       : 'https://api-eu.clusterpoint.com/298/osm_poi/_search?v=32',
+			type      : 'POST',
+			dataType  : 'json',
+			data      : '{"query": "<tags><name>~=\\"\\"</name></tags>' +
+			'&gt;&lt;circle", ' +
+			'"shapes": "<circle>' +
+			'<center>' + current_location[0] + ' ' + current_location[1] + '</center>' +
+			'<radius>' + radius + '</radius>' +
+			'<coord1_tag_name>lat</coord1_tag_name>' +
+			'<coord2_tag_name>lon</coord2_tag_name>' +
+			'</circle>", ' +
+			'"list": "<lat>yes</lat>' +
+			'<lon>yes</lon>' +
+			'<tags>' +
+			'<name>yes</name>' +
+			'</tags>", ' +
+			'"docs": "1000"}',
+			beforeSend: function (xhr) {
+				// Authentication
+				xhr.setRequestHeader('Authorization', 'Basic ' + btoa('osm:openmaps'));
+			},
+			success   : function (data) {
+				if (data.documents) {
+					// Draw each marker
+					for (var i = 0; i < data.documents.length; i++) {
+						var marker = data.documents[i];
+						if (marker.lat && marker.lon) {
+							drawMarker(marker.lat, marker.lon, (marker.tags && marker.tags.name ? marker.tags.name : ''));
+						}
+					}
+					// Move view to fit markers
+					if (markerGroup.getLayers().length) {
+						map.fitBounds(markerGroup.getBounds());
+					}
+				}
+			},
+			fail      : function (data) {
+				alert(data.error);
+			}
+		});
+
+		function drawMarker(lat, lon, label) {
+			// Set marker, set custom marker colour
+			var marker = L.marker([lat, lon], {
+				icon: L.mapbox.marker.icon({
+					'marker-color': 'ff8888'
+				})
+			});
+
+			if (label) {
+				marker.bindPopup(label);
+			}
+
+			// Add to marker group layer
+			markerGroup.addLayer(marker);
+		}
+	});
+</script>
+</body>
+</html>
